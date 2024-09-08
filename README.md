@@ -7,7 +7,7 @@ The `identify-shared-SVs.py` script identifies structural variant (SV) sites sha
 - [Python 3](https://www.python.org/) version 3.8 or higher
 - [pysam](https://pysam.readthedocs.io/en/latest/) version 0.22.0
 
-## Usage
+## Installation
 
 Clone the repository:
 
@@ -27,11 +27,24 @@ pip install -r requirements.txt
 Test the script:
 
 ```bash
-python identify-shared-SVs.py --vcf-file1 sample-input/manta.test.vcf.gz --vcf-file2 sample-input/smoove.test.vcf.gz --outfile sample-output/shared-SVs.vcf.gz --overwrite
+python identify-shared-SVs.py --vcf-file1 sample-input/manta.test.vcf.gz \
+--vcf-file2 sample-input/smoove.test.vcf.gz \
+--outfile sample-output/shared-SVs.vcf.gz \
+--shared-variants-file sample-output/shared-variants.txt \
+--genotype-overlap-percent 90 \
+--position-overlap-percent 90 \
+--not-shared-if-opposing-homozygotes \
+--progress-count 1000
 ```
 
-To see available options, run:
+### Command-line Options
 
-```bash
-python identify-shared-SVs.py --help
-```
+- `--vcf-file1` (required): Path to the first input VCF file (e.g., `vcf1.vcf.gz`).
+- `--vcf-file2` (required): Path to the second input VCF file (e.g., `vcf2.vcf.gz`).
+- `--outfile`: Path to the output VCF file (e.g., `shared_sites.vcf.gz`).
+- `--shared-variants-file`: Path to the optional tab-delimited output file providing identifiers of shared sites (e.g., `shared_variants.txt`).
+- `--genotype-overlap-percent`: Minimum genotype overlap percentage to be classified as a shared site (default: 90).
+- `--position-overlap-percent`: Minimum position overlap percentage to be classified as a shared site (default: 90).
+- `--not-shared-if-opposing-homozygotes`: Sites aren't classified as shared if opposing homozygotes are detected (default: False). Use this option to enable this behavior.
+- `--progress-count`: Frequency of progress updates (every N variants) (default: 1000).
+- `--version`: Show the program version and exit.

@@ -9,6 +9,8 @@ import os
 from pathlib import Path
 import argparse
 
+# Define the version
+VERSION = "0.1.0-beta.1"
 
 def get_1_based_start_and_end_positions(pysam_record):
     return pysam_record.pos, pysam_record.stop
@@ -66,7 +68,6 @@ def is_homozygous(genotype):
         and genotype[1] is not None
         and genotype[0] == genotype[1]
     )
-
 
 def has_opposing_homozygotes(variant1, variant2):
     return any(
@@ -127,21 +128,15 @@ def get_shared_SV_sites(
     genotype_overlap_percent=90,
     position_overlap_percent=90,
     outfile=None,
+    shared_variants_file=None,
     not_shared_if_opposing_homozygotes=True,
     progress_count=1000,
-    overwrite=True,
 ):
     check_input_file(vcf_file1)
     check_input_file(vcf_file2)
 
-    if not overwrite and outfile and os.path.exists(outfile):
-        raise FileExistsError(
-            f"Output file '{outfile}' already exists. Use '--overwrite' to overwrite it."
-        )
-
-    if overwrite and outfile:
-        if os.path.exists(outfile):
-            os.remove(outfile)
+    if outfile and os.path.exists(outfile):
+        os.remove(outfile)
         if os.path.exists(str(outfile) + ".tbi"):
             os.remove(str(outfile) + ".tbi")
 
@@ -160,6 +155,14 @@ def get_shared_SV_sites(
         mode = "w" if not compress_and_index else "wz"
         out_vcf = pysam.VariantFile(str(outfile), mode, header=vcf1.header)
 
+    # Handle the tab-delimited shared variants file
+    shared_variants_out = None
+    if shared_variants_file:
+        shared_variants_out = open(shared_variants_file, "w")
+        # Write the header
+        shared_variants_out.write(f"# {vcf_file1}\t{vcf_file2}\n")
+        shared_variants_out.write("vcf-file1\tvcf-file2\n")
+
     variant_count = 0
     unique_variants = set()
     unique_variants_by_type = {}
@@ -176,21 +179,20 @@ def get_shared_SV_sites(
             tuple(variant1.alts),
         )
 
-        variant_processed = False
+        variant1_id = variant1.id if variant1.id else f"{variant1.chrom}:{variant1_start}:{variant1.ref}:{'/'.join(variant1.alts)}"
 
-        # Calculate variant size
+        variant_processed = False
+        matched_variant2_ids = []  # Store matching variant2 IDs
+
+        # Calculate variant size and scan distance
         variant_size = variant1_stop - variant1_start + 1
-        # Calculate scan distance dynamically based on position overlap percent
         scan_distance = int(variant_size * (100 - position_overlap_percent) / 100)
 
-        # Adjust start and end positions based on the calculated scan distance
         start = max(0, variant1_start - scan_distance - 1)
         end = variant1_stop + scan_distance
 
-        for variant2 in vcf2.fetch(variant1.chrom, start, end):
-            variant2_start, variant2_stop = get_1_based_start_and_end_positions(
-                variant2
-            )
+        for variant2 in vcf2.fetch(variant1.chrom, start, min(end, vcf2.header.contigs[variant1.chrom].length)):
+            variant2_start, variant2_stop = get_1_based_start_and_end_positions(variant2)
 
             if variant1.info["SVTYPE"] == variant2.info["SVTYPE"]:
                 if is_position_overlap(
@@ -210,6 +212,9 @@ def get_shared_SV_sites(
                         ):
                             continue
 
+                        variant2_id = variant2.id if variant2.id else f"{variant2.chrom}:{variant2_start}:{variant2.ref}:{'/'.join(variant2.alts)}"
+                        matched_variant2_ids.append(variant2_id)
+
                         if variant_key not in unique_variants:
                             unique_variants.add(variant_key)
                             unique_variants_by_type[variant1.info["SVTYPE"]] = (
@@ -223,6 +228,10 @@ def get_shared_SV_sites(
                             variant_count += 1
                             variant_processed = True
 
+        # Write the variant1 and its matched variant2 IDs to the shared variants file
+        if shared_variants_out and matched_variant2_ids:
+            shared_variants_out.write(f"{variant1_id}\t{','.join(matched_variant2_ids)}\n")
+
         vcf2.reset()
 
     if out_vcf:
@@ -235,17 +244,22 @@ def get_shared_SV_sites(
             f"{variant_count} variants from {vcf_file1} shared with {vcf_file2} written out to {outfile}."
         )
 
+    # Close the shared variants file
+    if shared_variants_out:
+        shared_variants_out.close()
+
     print(f"Variants in {vcf_file1} shared with {vcf_file2} by SVTYPE:")
     for svtype, unique_count in unique_variants_by_type.items():
         print(f"{svtype}: Count = {unique_count}")
 
     print(f"Total sites: {len(unique_variants)}")
 
-
 def main():
     parser = argparse.ArgumentParser(
         description="Writes sites from the first file that are deemed to be shared with the second file."
     )
+    
+    # Required inputs first
     parser.add_argument(
         "--vcf-file1",
         required=True,
@@ -258,6 +272,20 @@ def main():
         type=str,
         help="Path to the second input VCF file (e.g., vcf2.vcf.gz)",
     )
+    
+    # Most commonly used optional settings
+    parser.add_argument(
+        "--outfile",
+        type=str,
+        help="Path to the output VCF file (e.g., shared_sites.vcf.gz)",
+    )
+    parser.add_argument(
+        "--shared-variants-file",
+        type=str,
+        help="Path to the optional tab-delimited output file providing identifiers of shared sites (e.g., shared_variants.txt)",
+    )
+    
+    # Important filtering criteria
     parser.add_argument(
         "--genotype-overlap-percent",
         type=int,
@@ -271,16 +299,13 @@ def main():
         help="Minimum position overlap percentage to be classified as a shared site (default: 90)",
     )
     parser.add_argument(
-        "--outfile",
-        type=str,
-        help="Path to the output VCF file (e.g., shared_sites.vcf.gz)",
-    )
-    parser.add_argument(
         "--not-shared-if-opposing-homozygotes",
         action="store_true",
-        default=True,
-        help="Sites aren't classified as shared if opposing homozygotes are detected (default: True)",
+        default=False,
+        help="Sites aren't classified as shared if opposing homozygotes are detected (default: False)",
     )
+
+    # Less important options like progress and version
     parser.add_argument(
         "--progress-count",
         type=int,
@@ -288,13 +313,23 @@ def main():
         help="Frequency of progress updates (every N variants) (default: 1000)",
     )
     parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        default=False,
-        help="Overwrite the output file if it exists (default: False)",
+        "--version",
+        action="version",
+        version=f"%(prog)s {VERSION}",
+        help="Show the program version and exit",
     )
 
     args = parser.parse_args()
+
+    # Validation checks
+    if not (0 <= args.genotype_overlap_percent <= 100):
+        raise ValueError("--genotype-overlap-percent must be an integer between 0 and 100.")
+
+    if not (0 <= args.position_overlap_percent <= 100):
+        raise ValueError("--position-overlap-percent must be an integer between 0 and 100.")
+
+    if args.progress_count is not None and args.progress_count <= 0:
+        raise ValueError("--progress-count must be an integer greater than 0 if defined.")
 
     get_shared_SV_sites(
         vcf_file1=args.vcf_file1,
@@ -304,7 +339,7 @@ def main():
         outfile=args.outfile,
         not_shared_if_opposing_homozygotes=args.not_shared_if_opposing_homozygotes,
         progress_count=args.progress_count,
-        overwrite=args.overwrite,
+        shared_variants_file=args.shared_variants_file
     )
 
 
