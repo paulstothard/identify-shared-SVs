@@ -9,15 +9,22 @@ The `identify-shared-SVs.py` script identifies structural variant (SV) sites sha
 
 ## Usage
 
-First create a virtual environment and install the required packages:
+Clone the repository:
 
 ```bash
+git clone git@github.com:paulstothard/identify-shared-SVs.git
+```
+
+Create a virtual environment and install the required packages:
+
+```bash
+cd identify-shared-SVs
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then run the script, for example:
+Then test the script, for example:
 
 ```bash
 python identify-shared-SVs.py --vcf-file1 sample-input/manta.test.vcf.gz --vcf-file2 sample-input/smoove.test.vcf.gz --outfile sample-output/shared-SVs.vcf.gz --overwrite
