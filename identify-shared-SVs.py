@@ -229,9 +229,14 @@ def get_shared_SV_sites(
             matched_variant2_ids = []
 
             variant_size = variant1_stop - variant1_start + 1
-            scan_distance = int(variant_size * (100 - position_overlap_percent) / 100)
 
+            # scan_distance is the distance to scan on either side of the variant1
+            # to find overlapping variant2s
+            scan_distance = 500000
+
+            # start for fetch method is zero-based, so subtract 1
             start = max(0, variant1_start - scan_distance - 1)
+            # end for fetch method is zero-based, half-open
             end = variant1_stop + scan_distance
 
             for variant2 in vcf2.fetch(
