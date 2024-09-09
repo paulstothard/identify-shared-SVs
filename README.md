@@ -1,6 +1,6 @@
 # identify-shared-SVs
 
-The `identify-shared-SVs.py` script identifies structural variant (SV) sites shared between two VCF files. It outputs sites from the first file that are deemed to be shared with the second file.
+The `identify-shared-SVs.py` script identifies structural variant (SV) sites shared between two VCF files. It outputs sites from the first file that are deemed to be shared with the second file. Sharing status is based on SV type, position overlap, and the percentage of matching genotypes. An optional `--not-shared-if-opposing-homozygotes` flag can be used to require that the sites have no opposing homozygote genotypes (e.g. 0/0 genotypes in one file and 1/1 genotypes in the other file) for shared status. The script accepts VCF and compressed VCF files (with or without an index) as input. The script can output compressed and uncompressed VCF files (based on the extension of the output file specified) and an optional tab-delimited file listing the identifiers (or identifying information if IDs are missing) of shared sites.
 
 ## Requirements
 
