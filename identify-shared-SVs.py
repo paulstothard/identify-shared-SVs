@@ -124,8 +124,22 @@ def ensure_vcf_index(vcf_file):
                 and os.path.getmtime(file1) < os.path.getmtime(file2)
             )
 
+        # Prompt before compressing, explain compression is required for indexing
         if vcf_file.suffix != ".gz":
             if not compressed_vcf_file.exists():
+                user_input = (
+                    input(
+                        f"File {vcf_file} is not compressed. Compression to .gz is required for indexing.\n"
+                        f"Would you like to compress it now? (y/n): "
+                    )
+                    .strip()
+                    .lower()
+                )
+                if user_input != "y":
+                    print(
+                        "Compression declined. Indexing cannot proceed without compression. Exiting."
+                    )
+                    sys.exit(1)
                 pysam.tabix_index(
                     str(vcf_file), preset="vcf", force=True, keep_original=True
                 )
@@ -136,6 +150,7 @@ def ensure_vcf_index(vcf_file):
                     )
                     sys.exit(1)
 
+        # Check if index creation is necessary
         index_needs_creation = False
         if not index_file_tbi.exists() and not index_file_csi.exists():
             index_needs_creation = True
@@ -148,7 +163,19 @@ def ensure_vcf_index(vcf_file):
         ):
             index_needs_creation = True
 
+        # Prompt before indexing
         if index_needs_creation:
+            user_input = (
+                input(
+                    f"Index for {compressed_vcf_file} is missing or outdated. Indexing is required to proceed.\n"
+                    f"Would you like to create the index now? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
+            if user_input != "y":
+                print("Indexing declined. Exiting.")
+                sys.exit(1)
             pysam.tabix_index(
                 str(compressed_vcf_file), preset="vcf", force=True, keep_original=True
             )
@@ -230,9 +257,16 @@ def get_shared_SV_sites(
 
             variant_size = variant1_stop - variant1_start + 1
 
+            # given the position_overlap_percent and the size of the variant,
+            # calculate the largest possible overlap region that could achieve
+            # the required percentage overlap
+            largest_possible_overlap_region = int(
+                variant_size * 100 / position_overlap_percent
+            )
+
             # scan_distance is the distance to scan on either side of the variant1
             # to find overlapping variant2s
-            scan_distance = 500000
+            scan_distance = largest_possible_overlap_region - variant_size
 
             # start for fetch method is zero-based, so subtract 1
             start = max(0, variant1_start - scan_distance - 1)
@@ -247,6 +281,13 @@ def get_shared_SV_sites(
                 variant2_start, variant2_stop = get_1_based_start_and_end_positions(
                     variant2
                 )
+
+                # Check if SVTYPE exists in both variants' info fields
+                if "SVTYPE" not in variant1.info or "SVTYPE" not in variant2.info:
+                    print(
+                        f"Error: SVTYPE is missing in one of the variants: {variant1_id} or {variant2.chrom}:{variant2_start}"
+                    )
+                    sys.exit(1)
 
                 if variant1.info["SVTYPE"] == variant2.info["SVTYPE"]:
                     if is_position_overlap(

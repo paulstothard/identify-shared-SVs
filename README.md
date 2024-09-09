@@ -1,6 +1,24 @@
 # identify-shared-SVs
 
-The `identify-shared-SVs.py` script identifies structural variant (SV) sites shared between two VCF files. It outputs sites from the first file that are deemed to be shared with the second file. Sharing status is based on SV type, position overlap, and the percentage of matching genotypes. An optional `--not-shared-if-opposing-homozygotes` flag can be used to require that the sites have no opposing homozygote genotypes (e.g. 0/0 genotypes in one file and 1/1 genotypes in the other file) for shared status. The script accepts VCF and compressed VCF files (with or without an index) as input. The script can output compressed and uncompressed VCF files (based on the extension of the output file specified) and an optional tab-delimited file listing the identifiers (or identifying information if IDs are missing) of shared sites.
+## Summary
+
+The `identify-shared-SVs.py` script identifies structural variant (SV) sites shared between two VCF files. It outputs sites from the first file that are deemed to be shared with the second file. Sharing status is based on SV type, position overlap, and the percentage of matching genotypes. An optional `--not-shared-if-opposing-homozygotes` flag can be used to require that the sites have no opposing homozygote genotypes to be considered shared. The script accepts VCF and compressed VCF files (with or without an index) as input. The script can output compressed and uncompressed VCF files (based on the extension of the output file specified) and an optional tab-delimited file listing the identifiers (or identifying information if IDs are missing) of shared sites.
+
+## Determining Shared Sites
+
+The SV comparison is done by comparing each SV in `--vcf-file1` to those in `--vcf-file2`. For a site in `--vcf-file1` to be deemed shared with a site in `--vcf-file2`, the following conditions must be met:
+
+- The `SVTYPE` values have to be the same.
+
+- The position overlap has to be equal to or greater than the `--position-overlap-percent` option setting (default: 90%). Position overlap is determined by comparing the start and stop positions of the two variants under consideration. The overlap is calculated as the length where the two variants intersect. This overlap length is then divided by the total length that spans both variants to calculate the overlap percentage.
+
+- The genotype overlap has to be equal to or greater than the `--genotype-overlap-percent` option setting (default: 90%). Genotype overlap is determined by comparing the genotypes of the two variants under consideration. The overlap is calculated as the number of matching genotypes divided by the total number of genotypes.
+
+- If the `--not-shared-if-opposing-homozygotes` option is used, the two variants under consideration must not have opposing homozygote genotypes. For example, if one variant has a `0/0` genotype and the other has a `1/1` genotype, the variants are not considered shared.
+
+## Output
+
+The script can write the sites from `--vcf-file1` that are shared with `--vcf-file2` to a VCF file specified by the `--outfile` option. Note that a single site in the output VCF file can be shared with multiple sites in `--vcf-file2`. The `--shared-variants-file` option can be used to write a tab-delimited file showing the identifiers or identifying information of all `--vcf-file2` sites that are shared with `--vcf-file1` sites.
 
 ## Requirements
 
