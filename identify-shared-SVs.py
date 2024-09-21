@@ -13,7 +13,7 @@ import argparse
 import sys
 
 # Define the version
-VERSION = "0.1.0-beta.1"
+VERSION = "0.1.0-beta.2"
 
 
 def get_1_based_start_and_end_positions(pysam_record):
@@ -72,7 +72,7 @@ def is_position_overlap(
     overlap = max(0, overlap_end - overlap_start + 1)
     total_length = max(variant1_stop, variant2_stop) - min(
         variant1_start, variant2_start
-    )
+    ) + 1
     return overlap / total_length >= position_overlap_percent / 100
 
 
