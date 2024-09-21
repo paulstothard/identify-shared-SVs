@@ -13,7 +13,7 @@ import argparse
 import sys
 
 # Define the version
-VERSION = "0.1.0-beta.2"
+VERSION = "0.1.0-beta.1"
 
 
 def get_1_based_start_and_end_positions(pysam_record):
