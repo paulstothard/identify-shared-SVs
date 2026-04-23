@@ -1,5 +1,7 @@
 # identify-shared-SVs
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0) [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+
 ## Summary
 
 The `identify-shared-SVs.py` script identifies structural variant (SV) sites shared between two VCF files. It outputs sites from the first file that are deemed to be shared with the second file. Sharing status is based on SV type, position overlap, and the percentage of matching genotypes. An optional `--not-shared-if-opposing-homozygotes` flag can be used to require that the sites have no opposing homozygote genotypes to be considered shared. The script accepts VCF and compressed VCF files (with or without an index) as input. The script can output compressed and uncompressed VCF files (based on the extension of the output file specified) and an optional tab-delimited file listing the identifiers (or identifying information if IDs are missing) of shared sites.
@@ -65,4 +67,5 @@ python identify-shared-SVs.py --vcf-file1 sample-input/manta.test.vcf.gz \
 - `--position-overlap-percent`: Minimum position overlap percentage to be classified as a shared site (default: 90).
 - `--not-shared-if-opposing-homozygotes`: Sites aren't classified as shared if opposing homozygotes are detected (default: False). Use this option to enable this behavior.
 - `--progress-count`: Frequency of progress updates (every N variants) (default: 1000).
+- `--force`: Skip interactive prompts for VCF compression and indexing (useful for automated pipelines) (default: False).
 - `--version`: Show the program version and exit.

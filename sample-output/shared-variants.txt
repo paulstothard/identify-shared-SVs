@@ -31,7 +31,6 @@ manta-127	smoove-249
 manta-129	smoove-253
 manta-131	smoove-266
 manta-132	smoove-267
-manta-134	smoove-268
 manta-138	smoove-274
 manta-142	smoove-288
 manta-148	smoove-299
@@ -92,7 +91,6 @@ manta-352	smoove-781
 manta-362	smoove-790
 manta-363	smoove-791
 manta-365	smoove-794
-manta-367	smoove-796
 manta-373	smoove-813
 manta-385	smoove-844
 manta-387	smoove-857
@@ -272,7 +270,6 @@ manta-800	smoove-1798
 manta-804	smoove-1820
 manta-806	smoove-1827
 manta-809	smoove-1839
-manta-812	smoove-1847
 manta-819	smoove-1856
 manta-820	smoove-1863
 manta-821	smoove-1874
@@ -284,7 +281,6 @@ manta-839	smoove-1934
 manta-841	smoove-1940
 manta-845	smoove-1958
 manta-851	smoove-1981
-manta-853	smoove-1985
 manta-855	smoove-1989
 manta-857	smoove-2013
 manta-859	smoove-2016
@@ -521,7 +517,6 @@ manta-1686	smoove-4053
 manta-1689	smoove-4058
 manta-1705	smoove-4070
 manta-1710	smoove-4082
-manta-1716	smoove-4085
 manta-1717	smoove-4086
 manta-1727	smoove-4092
 manta-1729	smoove-4099
@@ -658,7 +653,6 @@ manta-2205	smoove-5079
 manta-2206	smoove-5082
 manta-2207	smoove-5086
 manta-2210	smoove-5090
-manta-2211	smoove-5091
 manta-2212	smoove-5092
 manta-2213	smoove-5093
 manta-2214	smoove-5094
@@ -883,7 +877,6 @@ manta-2800	smoove-6653
 manta-2801	smoove-6654
 manta-2802	smoove-6656
 manta-2804	smoove-6660
-manta-2806	smoove-6669
 manta-2810	smoove-6692
 manta-2811	smoove-6697
 manta-2812	smoove-6705
@@ -997,7 +990,6 @@ manta-3161	smoove-7511
 manta-3164	smoove-7526
 manta-3166	smoove-7531
 manta-3167	smoove-7532
-manta-3172	smoove-7536
 manta-3175	smoove-7540
 manta-3178	smoove-7549
 manta-3181	smoove-7553
@@ -1178,7 +1170,6 @@ manta-3762	smoove-8715
 manta-3765	smoove-8719
 manta-3766	smoove-8720
 manta-3767	smoove-8721
-manta-3768	smoove-8724
 manta-3769	smoove-8727
 manta-3770	smoove-8728
 manta-3771	smoove-8733
@@ -1210,7 +1201,6 @@ manta-3819	smoove-8834
 manta-3825	smoove-8848
 manta-3829	smoove-8861
 manta-3834	smoove-8869
-manta-3835	smoove-8876
 manta-3837	smoove-8892
 manta-3840	smoove-8896
 manta-3849	smoove-8906

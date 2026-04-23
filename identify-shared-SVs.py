@@ -1,32 +1,66 @@
 #!/usr/bin/env python3
 """
+Identify shared structural variants between two VCF files.
+
+This script compares structural variants (SVs) from two VCF files and identifies
+shared variants based on position overlap, genotype similarity, and SV type.
+
 Author:
     Paul Stothard
 Email:
     paul.stothard@gmail.com
 """
 
-import pysam
-import os
-from pathlib import Path
 import argparse
+import os
 import sys
+from pathlib import Path
+from typing import Optional, Tuple, List, Set, Dict
+
+import pysam
 
 # Define the version
 VERSION = "0.1.0-beta.1"
 
 
-def get_1_based_start_and_end_positions(pysam_record):
+def get_1_based_start_and_end_positions(
+    pysam_record: pysam.VariantRecord,
+) -> Tuple[int, int]:
+    """Extract 1-based start and end positions from a pysam VariantRecord.
+
+    Args:
+        pysam_record: A pysam VariantRecord object.
+
+    Returns:
+        A tuple containing (start, end) positions in 1-based coordinates.
+    """
     return pysam_record.pos, pysam_record.stop
 
 
-def check_input_file(vcf_file):
+def check_input_file(vcf_file: str) -> None:
+    """Check if the input VCF file exists.
+
+    Args:
+        vcf_file: Path to the VCF file to check.
+
+    Raises:
+        SystemExit: If the file does not exist.
+    """
     if not os.path.exists(vcf_file):
         print(f"Error: VCF file not found: {vcf_file}")
         sys.exit(1)
 
 
-def check_samples_order(vcf1, vcf2):
+def check_samples_order(vcf1: pysam.VariantFile, vcf2: pysam.VariantFile) -> None:
+    """Verify that both VCF files have the same samples in the same order.
+
+    Args:
+        vcf1: First VCF file object.
+        vcf2: Second VCF file object.
+
+    Raises:
+        SystemExit: If samples differ or are in different order.
+    """
     samples1 = list(vcf1.header.samples)
     samples2 = list(vcf2.header.samples)
 
@@ -39,7 +73,18 @@ def check_samples_order(vcf1, vcf2):
         sys.exit(1)
 
 
-def check_sequences_and_lengths(vcf1, vcf2):
+def check_sequences_and_lengths(
+    vcf1: pysam.VariantFile, vcf2: pysam.VariantFile
+) -> None:
+    """Verify that both VCF files have the same reference sequences and lengths.
+
+    Args:
+        vcf1: First VCF file object.
+        vcf2: Second VCF file object.
+
+    Raises:
+        SystemExit: If sequences, lengths, or order differ between files.
+    """
     sequences1 = vcf1.header.contigs
     sequences2 = vcf2.header.contigs
 
@@ -61,12 +106,27 @@ def check_sequences_and_lengths(vcf1, vcf2):
 
 
 def is_position_overlap(
-    variant1_start,
-    variant1_stop,
-    variant2_start,
-    variant2_stop,
-    position_overlap_percent,
-):
+    variant1_start: int,
+    variant1_stop: int,
+    variant2_start: int,
+    variant2_stop: int,
+    position_overlap_percent: float,
+) -> bool:
+    """Check if two variants have sufficient position overlap.
+
+    Position overlap is calculated as the ratio of the overlapping region
+    to the total span covering both variants.
+
+    Args:
+        variant1_start: Start position of first variant (1-based).
+        variant1_stop: End position of first variant (1-based).
+        variant2_start: Start position of second variant (1-based).
+        variant2_stop: End position of second variant (1-based).
+        position_overlap_percent: Minimum required overlap percentage (0-100).
+
+    Returns:
+        True if the position overlap meets or exceeds the threshold.
+    """
     overlap_start = max(variant1_start, variant2_start)
     overlap_end = min(variant1_stop, variant2_stop)
     overlap = max(0, overlap_end - overlap_start + 1)
@@ -76,7 +136,21 @@ def is_position_overlap(
     return overlap / total_length >= position_overlap_percent / 100
 
 
-def is_genotype_overlap(variant1, variant2, genotype_overlap_percent):
+def is_genotype_overlap(
+    variant1: pysam.VariantRecord,
+    variant2: pysam.VariantRecord,
+    genotype_overlap_percent: float,
+) -> Tuple[bool, List[str]]:
+    """Check if two variants have sufficient genotype overlap.
+
+    Args:
+        variant1: First variant record.
+        variant2: Second variant record.
+        genotype_overlap_percent: Minimum required genotype match percentage (0-100).
+
+    Returns:
+        A tuple of (overlap_sufficient, list_of_matching_samples).
+    """
     matching_samples = [
         sample
         for sample in variant1.samples
@@ -88,7 +162,15 @@ def is_genotype_overlap(variant1, variant2, genotype_overlap_percent):
     )
 
 
-def is_homozygous(genotype):
+def is_homozygous(genotype: Optional[Tuple]) -> bool:
+    """Check if a genotype is homozygous.
+
+    Args:
+        genotype: A tuple representing a genotype (e.g., (0, 0) or (1, 1)).
+
+    Returns:
+        True if the genotype is homozygous (both alleles are the same).
+    """
     return (
         genotype is not None
         and genotype[0] is not None
@@ -97,7 +179,21 @@ def is_homozygous(genotype):
     )
 
 
-def has_opposing_homozygotes(variant1, variant2):
+def has_opposing_homozygotes(
+    variant1: pysam.VariantRecord, variant2: pysam.VariantRecord
+) -> bool:
+    """Check if two variants have opposing homozygote genotypes.
+
+    Opposing homozygotes occur when the same sample is homozygous for different
+    alleles in the two variants (e.g., 0/0 vs 1/1).
+
+    Args:
+        variant1: First variant record.
+        variant2: Second variant record.
+
+    Returns:
+        True if any sample has opposing homozygote genotypes.
+    """
     return any(
         is_homozygous(variant1.samples[sample]["GT"])
         and is_homozygous(variant2.samples[sample]["GT"])
@@ -106,7 +202,24 @@ def has_opposing_homozygotes(variant1, variant2):
     )
 
 
-def ensure_vcf_index(vcf_file):
+def ensure_vcf_index(vcf_file: str, force: bool = False) -> Path:
+    """Ensure a VCF file is compressed and indexed.
+
+    If the file is not compressed, prompts the user for permission to compress it
+    (or proceeds automatically if force=True).
+    If the index is missing or outdated, prompts the user to create/update it
+    (or proceeds automatically if force=True).
+
+    Args:
+        vcf_file: Path to the VCF file.
+        force: If True, skip interactive prompts and proceed automatically.
+
+    Returns:
+        Path object pointing to the compressed VCF file.
+
+    Raises:
+        SystemExit: If user declines compression/indexing or if an error occurs.
+    """
     try:
         vcf_file = Path(vcf_file)
         if vcf_file.suffix == ".gz":
@@ -127,19 +240,20 @@ def ensure_vcf_index(vcf_file):
         # Prompt before compressing, explain compression is required for indexing
         if vcf_file.suffix != ".gz":
             if not compressed_vcf_file.exists():
-                user_input = (
-                    input(
-                        f"File {vcf_file} is not compressed. Compression to .gz is required for indexing.\n"
-                        f"Would you like to compress it now? (y/n): "
+                if not force:
+                    user_input = (
+                        input(
+                            f"File {vcf_file} is not compressed. Compression to .gz is required for indexing.\n"
+                            f"Would you like to compress it now? (y/n): "
+                        )
+                        .strip()
+                        .lower()
                     )
-                    .strip()
-                    .lower()
-                )
-                if user_input != "y":
-                    print(
-                        "Compression declined. Indexing cannot proceed without compression. Exiting."
-                    )
-                    sys.exit(1)
+                    if user_input != "y":
+                        print(
+                            "Compression declined. Indexing cannot proceed without compression. Exiting."
+                        )
+                        sys.exit(1)
                 pysam.tabix_index(
                     str(vcf_file), preset="vcf", force=True, keep_original=True
                 )
@@ -165,17 +279,18 @@ def ensure_vcf_index(vcf_file):
 
         # Prompt before indexing
         if index_needs_creation:
-            user_input = (
-                input(
-                    f"Index for {compressed_vcf_file} is missing or outdated. Indexing is required to proceed.\n"
-                    f"Would you like to create the index now? (y/n): "
+            if not force:
+                user_input = (
+                    input(
+                        f"Index for {compressed_vcf_file} is missing or outdated. Indexing is required to proceed.\n"
+                        f"Would you like to create the index now? (y/n): "
+                    )
+                    .strip()
+                    .lower()
                 )
-                .strip()
-                .lower()
-            )
-            if user_input != "y":
-                print("Indexing declined. Exiting.")
-                sys.exit(1)
+                if user_input != "y":
+                    print("Indexing declined. Exiting.")
+                    sys.exit(1)
             pysam.tabix_index(
                 str(compressed_vcf_file), preset="vcf", force=True, keep_original=True
             )
@@ -187,15 +302,35 @@ def ensure_vcf_index(vcf_file):
 
 
 def get_shared_SV_sites(
-    vcf_file1,
-    vcf_file2,
-    genotype_overlap_percent=90,
-    position_overlap_percent=90,
-    outfile=None,
-    shared_variants_file=None,
-    not_shared_if_opposing_homozygotes=True,
-    progress_count=1000,
-):
+    vcf_file1: str,
+    vcf_file2: str,
+    genotype_overlap_percent: float = 90,
+    position_overlap_percent: float = 90,
+    outfile: Optional[str] = None,
+    shared_variants_file: Optional[str] = None,
+    not_shared_if_opposing_homozygotes: bool = True,
+    progress_count: Optional[int] = 1000,
+    force: bool = False,
+) -> None:
+    """Identify and write shared structural variants between two VCF files.
+
+    This function compares structural variants from two VCF files and identifies
+    shared variants based on SV type, position overlap, and genotype overlap.
+
+    Args:
+        vcf_file1: Path to the first VCF file (query file).
+        vcf_file2: Path to the second VCF file (reference file).
+        genotype_overlap_percent: Minimum genotype overlap percentage (0-100).
+        position_overlap_percent: Minimum position overlap percentage (0-100).
+        outfile: Optional path to output VCF file containing shared variants.
+        shared_variants_file: Optional path to tab-delimited file listing shared variant IDs.
+        not_shared_if_opposing_homozygotes: If True, exclude variants with opposing homozygotes.
+        progress_count: Print progress every N variants. None to disable.
+        force: If True, skip interactive prompts for compression/indexing.
+
+    Raises:
+        SystemExit: If input validation fails or an error occurs during processing.
+    """
     try:
         check_input_file(vcf_file1)
         check_input_file(vcf_file2)
@@ -205,8 +340,8 @@ def get_shared_SV_sites(
             if os.path.exists(str(outfile) + ".tbi"):
                 os.remove(str(outfile) + ".tbi")
 
-        vcf_file1 = ensure_vcf_index(vcf_file1)
-        vcf_file2 = ensure_vcf_index(vcf_file2)
+        vcf_file1 = ensure_vcf_index(vcf_file1, force=force)
+        vcf_file2 = ensure_vcf_index(vcf_file2, force=force)
 
         vcf1 = pysam.VariantFile(vcf_file1)
         vcf2 = pysam.VariantFile(vcf_file2)
@@ -359,7 +494,8 @@ def get_shared_SV_sites(
         sys.exit(1)
 
 
-def main():
+def main() -> None:
+    """Parse command-line arguments and run the shared SV identification."""
     parser = argparse.ArgumentParser(
         description="Writes sites from the first file that are deemed to be shared with the second file."
     )
@@ -414,6 +550,12 @@ def main():
         help="Frequency of progress updates (every N variants) (default: 1000)",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Skip interactive prompts for VCF compression and indexing (default: False)",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {VERSION}",
@@ -445,6 +587,7 @@ def main():
             not_shared_if_opposing_homozygotes=args.not_shared_if_opposing_homozygotes,
             progress_count=args.progress_count,
             shared_variants_file=args.shared_variants_file,
+            force=args.force,
         )
     except Exception as e:
         print(f"Error: {e}")
