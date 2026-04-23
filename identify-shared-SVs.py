@@ -70,9 +70,9 @@ def is_position_overlap(
     overlap_start = max(variant1_start, variant2_start)
     overlap_end = min(variant1_stop, variant2_stop)
     overlap = max(0, overlap_end - overlap_start + 1)
-    total_length = max(variant1_stop, variant2_stop) - min(
-        variant1_start, variant2_start
-    ) + 1
+    total_length = (
+        max(variant1_stop, variant2_stop) - min(variant1_start, variant2_start) + 1
+    )
     return overlap / total_length >= position_overlap_percent / 100
 
 
